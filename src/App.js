@@ -3,15 +3,15 @@ import logo from './logo.webp';
 import './App.css';
 
 function App() {
-  const [bearing, setBearing] = useState(null);
-  const [heading, setHeading] = useState(0);
-  const [referenceHeading, setReferenceHeading] = useState(null);
+  const [bearing, setBearing] = useState(null); // Qibla bearing
+  const [heading, setHeading] = useState(0);    // Device heading
   const [error, setError] = useState('');
   const [enabled, setEnabled] = useState(false);
 
+  // Function to calculate Qibla direction using spherical trigonometry
   function calculateQibla(lat, lon) {
-    const kaabaLat = 21.4225 * Math.PI / 180;
-    const kaabaLon = 39.8262 * Math.PI / 180;
+    const kaabaLat = 21.422510 * Math.PI / 180;
+    const kaabaLon = 39.82606 * Math.PI / 180;
     const userLat = lat * Math.PI / 180;
     const userLon = lon * Math.PI / 180;
 
@@ -41,15 +41,19 @@ function App() {
       }
     );
 
-    // Request orientation
+    // Handle device orientation
     const handleOrientation = (e) => {
       if (e.alpha !== null) {
-        // Set the baseline the first time we get a value
-        setReferenceHeading((prev) => (prev === null ? e.alpha : prev));
-        setHeading(e.alpha);
+        // Use webkitCompassHeading on iOS; otherwise invert alpha for Android
+        const compassHeading = e.webkitCompassHeading !== undefined
+          ? e.webkitCompassHeading
+          : (360 - e.alpha);
+
+        setHeading(compassHeading);
       }
     };
 
+    // Request permission for iOS 13+ devices
     if (
       typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function'
@@ -72,15 +76,15 @@ function App() {
     setEnabled(true);
   };
 
-  // Rotation calculation
+  // Calculate rotation
   let rotateAngle = 0;
-  if (bearing !== null && referenceHeading !== null) {
-    const adjustedHeading = (heading - referenceHeading + 360) % 360;
-    rotateAngle = ((bearing - adjustedHeading) + 360) % 360;
+  if (bearing !== null) {
+    rotateAngle = ((bearing - heading) + 360) % 360;
   }
 
-  // Show a success message if user is aligned within 5 degrees
-  const isAligned = Math.abs(rotateAngle) < 5 || Math.abs(rotateAngle - 360) < 5;
+  // Show a success message if aligned within 5 degrees
+  const isAligned =
+    Math.abs(rotateAngle) < 5 || Math.abs(rotateAngle - 360) < 5;
 
   return (
     <div className="App">
@@ -107,7 +111,9 @@ function App() {
               alt="compass"
               style={{
                 transform: `rotate(${rotateAngle}deg)`,
-                filter: isAligned ? 'drop-shadow(0 0 10px lime)' : 'none'
+                filter: isAligned
+                  ? 'drop-shadow(0 0 10px lime)'
+                  : 'none'
               }}
             />
 
@@ -115,7 +121,13 @@ function App() {
               <>
                 <p>Qibla direction: {bearing.toFixed(2)}° from North</p>
                 {isAligned && (
-                  <p style={{ color: 'lightgreen', fontWeight: 'bold', fontSize: '18px' }}>
+                  <p
+                    style={{
+                      color: 'lightgreen',
+                      fontWeight: 'bold',
+                      fontSize: '18px'
+                    }}
+                  >
                     You are facing the Qibla!
                   </p>
                 )}
